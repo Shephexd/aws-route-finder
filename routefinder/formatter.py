@@ -69,4 +69,6 @@ class AnalyzedOutputFormatter:
                 message += " - Unknown issue."
 
             messages.append(message)
-        return message
+        messages.append("\n")
+        return "\n".join(messages)
+

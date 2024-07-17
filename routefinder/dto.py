@@ -89,13 +89,13 @@ class RouteFindingResult:
         if detail:
             summary = self.get_forward_path_summary()
             lines.append(summary)
-
         return "\n".join(lines)
 
     def get_explain(self):
-        if self.is_succeed:
-            return ""
-        return "\n".join(AnalyzedOutputFormatter.explain(self.detail["NetworkInsightsAnalyses"][0]["Explanations"]))
+        if self.is_reachable:
+            return "No Issue Found"
+        return f"Reasons:\n" + AnalyzedOutputFormatter.explain(
+            self.detail["NetworkInsightsAnalyses"][0]["Explanations"])
 
     def get_forward_path_summary(self):
         if self.is_running:
