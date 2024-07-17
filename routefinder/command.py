@@ -3,7 +3,7 @@ import regex
 import boto3
 from PyInquirer import prompt
 from prompt_toolkit.validation import Validator, ValidationError
-from route_finder import RouteFinder, RouteFindingResult
+from .route_finder import RouteFinder, RouteFindingResult
 
 
 class IPValidator(Validator):
