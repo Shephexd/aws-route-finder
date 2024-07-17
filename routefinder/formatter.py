@@ -74,7 +74,7 @@ EXPLANATION_CODE_MAP = {
   "VPCE_GATEWAY_PROTOCOL_RESTRICTION": "VPC gateway endpoints accept only TCP or ICMP ECHO traffic, and emit only TCP or ICMP ECHO reply traffic.",
   "VPCE_SERVICE_NOT_INSTALLED_IN_AZ": "The VPC endpoint service is not installed in the specified Availability Zone.",
 
-  #Addtional Detail Codes(https://docs.aws.amazon.com/vpc/latest/reachability/additional-detail-codes.html)
+  # Additional Detail Codes(https://docs.aws.amazon.com/vpc/latest/reachability/additional-detail-codes.html)
   "ASSUMPTION_PRESERVE_CLIENT_IP_IS_DISABLED": "The analysis could not describe target group attributes for the target group, so the network path is based on the assumption that client IP preservation is disabled on the target group. You should verify this assumption.",
   "ASSUMPTION_PRESERVE_CLIENT_IP_IS_ENABLED": "The analysis could not describe target group attributes for the target group, so the network path is based on the assumption that client IP preservation is enabled on the target group. You should verify this assumption.",
   "AVAILABILITY_ZONE_CROSSED": "The network path crosses Availability Zones.",
@@ -85,7 +85,14 @@ EXPLANATION_CODE_MAP = {
   "PATH_THROUGH_GWLB_NOT_CHECKED": "The analysis does not consider that traffic entering the VPC endpoint is forwarded to a Gateway Load Balancer for inspection before exiting the VPC endpoint.",
   "RESPONSE_RTB_HAS_NO_ROUTE_TO_TRANSIT_GATEWAY": "Traffic is routed from the transit gateway to the VPC endpoint. However, there is no route from the VPC endpoint to the transit gateway, so the network might drop the response traffic.",
   "TRANSIT_GATEWAY_APPLIANCE_MODE_RECOMMENDED": "The transit gateway VPC attachment has appliance mode disabled, but traffic is inspected through a Network Firewall. We recommend that you enable appliance mode for the VPC attachment.",
-  "UNIDIRECTIONAL_PATH_ANALYSIS_ONLY": "The results include forward path analysis from the source to the destination. There might be a blocking configuration in the reverse path, which could not be analyzed."
+  "UNIDIRECTIONAL_PATH_ANALYSIS_ONLY": "The results include forward path analysis from the source to the destination. There might be a blocking configuration in the reverse path, which could not be analyzed.",
+
+  # Configuration (https://docs.aws.amazon.com/vpc/latest/reachability/explanation-codes.html#configuration-codes)
+  "DISCONNECTED_VPCS": "The source and destination are in separate VPCs that are not connected by a supported resource.",
+  "NO_PATH": "Reachability Analyzer was unable to find a path from the source to the destination. The following are the most common causes:\n\nThe path does not meet the optional configuration details, such as an IP address, port, or filter.\n\nThe source or destination components are temporarily isolated from the network (for example, a newly started instance that does not yet have a network interface).\n\nThe source can't initiate traffic to the destination (for example, an interface VPC endpoint or gateway VPC endpoint can't initiate connections with components in the same VPC as the VPC endpoint).\n\nThe path requires the ability to analyze an unsupported feature (for example, IPv6) or an unsupported network component.",
+  "NO_SOURCE_OR_DESTINATION": "The source or destination resource does not exist.",
+  "UNASSOCIATED_COMPONENT": "The component is not associated with a VPC in your account (for example, a recently terminated instance), or none of its network interfaces has an IPv4 address.",
+  "UNSUPPORTED_COMPONENT": "The component is not supported by Reachability Analyzer."
 }
 
 
