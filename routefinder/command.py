@@ -126,9 +126,7 @@ class RouteFinderCommand:
         network_insight_kwargs = prompt(questions=outbound_params)
         analysis_result = self.route_finder.run(
             source=network_insight_kwargs["Source"],
-            source_ip=network_insight_kwargs["SourceIp"],
             destination=network_insight_kwargs["Destination"],
-            destination_port=int(network_insight_kwargs["DestinationPort"]),
             protocol=network_insight_kwargs["Protocol"],
             sync_flag=True
         )
