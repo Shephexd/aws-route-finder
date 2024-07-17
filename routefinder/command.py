@@ -34,7 +34,7 @@ class RouteFinderCommand:
         setup_prompt = [
             {
                 'type': 'list',
-                'message': 'Select Route Finder Type(Press 1 or 2 or 3)',
+                'message': 'Select Route Finder Type',
                 'name': 'find_type',
                 'default': 'h',
                 'choices': [
