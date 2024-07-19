@@ -13,5 +13,10 @@ if __name__ == "__main__":
 
     command = RouteFinderCommand()
     setup_config = command.setup()
-    result = command.run(**setup_config)
+    result = command.run(source_type=setup_config["SourceType"],
+                         source=setup_config["Source"],
+                         destination_type=setup_config["DestinationType"],
+                         destination=setup_config["Destination"],
+                         protocol=setup_config["Protocol"]
+                         )
     print(result.get_result(detail=args.verbose))

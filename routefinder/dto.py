@@ -1,3 +1,4 @@
+from typing import List
 from dataclasses import dataclass, field
 from .formatter import AnalyzedOutputFormatter
 
@@ -39,11 +40,11 @@ class EC2Instance(Endpoint):
     Name: str = field(init=False, repr=True)
     ImageId: str = field(repr=False)
     InstanceId: str
-    InstanceType: str
+    InstanceType: str = field(repr=False)
     PrivateIpAddress: str
     Tags: list = field(repr=False)
-    Platform: str = ""
     PublicIpAddress: str = ""
+    Platform: str = ""
 
     def __post_init__(self):
         for t in self.Tags:
@@ -54,6 +55,40 @@ class EC2Instance(Endpoint):
     @property
     def id(self):
         return self.InstanceId
+
+
+@dataclass
+class NetworkInterface(Endpoint):
+
+    NetworkInterfaceId: str
+    InterfaceType: str
+    OwnerId: str = field(repr=False)
+    PrivateIpAddress: str
+    PrivateIpAddresses: List[str]
+    Status: str
+    SubnetId: str = field(repr=False)
+    VpcId: str = field(repr=False)
+    AvailabilityZone: str = field(repr=False)
+    SourceDestCheck: str = field(repr=False)
+    PrivateDnsName: str = field(repr=False)
+    Description: str
+    Groups: List[str] = field(repr=False)
+    MacAddress: str = field(repr=False)
+    Attachment: dict = field(default_factory=dict, repr=False)
+    Association: dict = field(default_factory=dict, repr=False)
+    # Deny_all_igw_traffic: str
+
+    @property
+    def id(self):
+        return self.NetworkInterfaceId
+
+    @property
+    def has_eip(self):
+        return bool(self.Association)
+
+    def __post_init__(self):
+        _PrivateIpAddresses = [ip['PrivateIpAddress'] for ip in self.PrivateIpAddresses]
+        self.PrivateIpAddresses = _PrivateIpAddresses
 
 
 @dataclass
