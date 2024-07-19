@@ -1,4 +1,5 @@
 import argparse
+from botocore.config import Config
 from routefinder.command import RouteFinderCommand
 
 
@@ -9,9 +10,14 @@ if __name__ == "__main__":
         epilog='Text at the bottom of help')
     parser.add_argument('-v', '--verbose',
                         action='store_true')
+    parser.add_argument('-r', '--region')
     args = parser.parse_args()
 
-    command = RouteFinderCommand()
+    boto_config = None
+    if args.region:
+        boto_config = Config(region_name=args.region)
+
+    command = RouteFinderCommand(boto_config=boto_config)
     setup_config = command.setup()
     result = command.run(source_type=setup_config["SourceType"],
                          source=setup_config["Source"],
