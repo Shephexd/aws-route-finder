@@ -12,19 +12,19 @@ AWS Route Finder는 VPC Reachability Analyzer를 기반으로 AWS 인프라의 �
 - 실시간 경로 분석 결과 확인: 경로 분석 결과를 기반으로 네트워크 연결성을 검증합니다.
 
 
-### 사전 요구사항
+## 사전 요구사항
 AWS의 CloudShell에서 사용을 권장합니다.
 AWS Route Finder를 사용하기 위해서는 aws-cli 도구가 설치되어 있고, 자격증명이 설정되어 있어야 합니다.
 
 
-1. AWS CLI 설치하기
+### 1. AWS CLI 설치하기
 ```bash
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
 sudo ./aws/install
 ```
 
-2. 계정 자격 증명 설정하기
+### 2. 계정 자격 증명 설정하기
 ```bash
 $aws configure
 AWS Access Key ID [None]: <AccessKeyId>
@@ -32,6 +32,36 @@ AWS Secret Access Key [None]: <위에서 발급한 Secret Access Key>
 Default region name [None]: 
 Default output format [None]:
 ```
+
+### IAM 최소 권한 정책 예시
+
+AWS Route Finder에서 필요한 권한은 아래와 같습니다. 
+
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": [
+				"ec2:CreateNetworkInsightsPath",
+				"ec2:StartNetworkInsightsAnalysis",
+				"ec2:DescribeNetworkInsightsAnalyses",
+				"ec2:DescribeNetworkInterfaces",
+				"ec2:DescribeInternetGateways",
+				"ec2:DescribeInstances",
+				"ec2:DescribeRouteTables",
+				"tiros:CreateQuery"
+			],
+			"Resource": "*"
+		}
+	]
+}
+```
+
+> Tiros란?   
+> Tiros는 AWS 서비스에서만 접근 가능한 서비스로, ReachabilityAnalyzer의 Finding 결과를 표시하는 서비스입니다.
+
 
 ```bash
 $aws sts get-caller-identity
