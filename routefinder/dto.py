@@ -92,6 +92,15 @@ class NetworkInterface(Endpoint):
 
 
 @dataclass
+class InternetProtocolAddress(Endpoint):
+    IpAddress: str
+
+    @property
+    def id(self):
+        return self.IpAddress
+
+
+@dataclass
 class RouteFindingResult:
     network_insight_path_id: str
     network_insight_analysis_id: str

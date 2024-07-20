@@ -7,7 +7,7 @@ import boto3
 from botocore.config import Config
 from PyInquirer import prompt
 from prompt_toolkit.validation import Validator, ValidationError
-from routefinder.app import RouteFinder, RouteFindingResult
+from routefinder.app import RouteFinder, RouteFindingResult, get_host_by_name
 from routefinder.dto import Endpoint
 
 
@@ -15,19 +15,23 @@ def validate_ip(ip: str):
     pattern_ok = regex.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip)
     if not pattern_ok:
         raise ValidationError(message='Please enter a valid IP')
+    return True
+
+def validate_fqdn(route_finder: RouteFinder, fqdn):
+    try:
+        host = route_finder.get_host_by_name(fqdn)
+        return True
+    except socket.gaierror:
+        return False
 
 
-def validate_registered_ip(route_finder: RouteFinder, ip):
+def validate_registered_ip(route_finder: RouteFinder, ip: str):
     validate_ip(ip)
 
     is_registered_ip = route_finder.ip_map.get(ip)
     if not is_registered_ip:
         raise ValidationError(message='Not registered IP')
     return True
-
-
-SOURCE_TYPES = {"EC2", "IGW", "IP"}
-DESTINATION_TYPES = {"FQDN", "EC2", "IGW", "IP"}
 
 
 class RouteFinderCommand:
@@ -38,18 +42,6 @@ class RouteFinderCommand:
             client = boto3.client("ec2", config=boto_config)
         self.route_finder = RouteFinder(ec2_client=client)
 
-    def validate_ip(self, ip):
-        if ip not in self.route_finder.ip_map:
-            return False
-        return True
-
-    def validate_fqdn(self, fqdn):
-        try:
-            host = self.route_finder.get_host_by_name(fqdn)
-            return True
-        except socket.gaierror:
-            return False
-
     def setup(self):
         source_questions = [
             {
@@ -58,7 +50,7 @@ class RouteFinderCommand:
                 'message': 'Select SourceType',
                 "choices": [
                     {"name": "Amazon EC2 Instance", "value": "EC2"},
-                    {"name": "IP Address", "value": "IP"},
+                    {"name": "IP Address on AWS", "value": "IP"},
                     {"name": "Internet Gateway", "value": "IGW"}
                 ]
             },
@@ -90,10 +82,15 @@ class RouteFinderCommand:
                 'name': 'DestinationType',
                 'message': 'Select DestinationType',
                 "choices": lambda answer:
-                [{"name": "Domain Name(FQDN)", "value": "FQDN"},
-                 {"name": "Amazon EC2", "value": "EC2"}] if answer["SourceType"] == "IGW"
+                [
+                    {"name": "Domain Name(FQDN)", "value": "FQDN"},
+                    {"name": "Amazon EC2", "value": "EC2"},
+                    {"name": "IPv4 Address", "value": "IP"}
+                ]
+                if answer["SourceType"] == "IGW"
                 else [
                     {"name": "Domain Name(FQDN)", "value": "FQDN"},
+                    {"name": "IPv4 Address", "value": "IP"},
                     {"name": "Amazon EC2", "value": "EC2"},
                     {"name": "Internet Gateway", "value": "IGW"}
                 ]
@@ -113,11 +110,17 @@ class RouteFinderCommand:
                 "when": lambda answer: answer["DestinationType"] == "FQDN",
             },
             {
+                'type': 'input',
+                'name': 'Destination',
+                'message': 'Input IPAddress',
+                "validate": lambda ip: validate_ip(ip),
+                "when": lambda answer: answer["DestinationType"] == "IP"
+            },
+            {
                 'type': 'list',
                 'name': 'Destination',
-                'message': 'Input IP Address',
+                'message': 'Select Internet Gateway',
                 "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.igw_map.items()],
-                "validate": lambda ip: validate_ip(ip),
                 "when": lambda answer: answer["DestinationType"] == "IGW"
             }
         ]
@@ -148,10 +151,12 @@ class RouteFinderCommand:
         return source, source_ip
 
     def map_destination(self, destination_type, destination, destination_ip) -> (Endpoint, str):
-        if destination_type in ["EC2", "IP", "IGW"]:
+        # Analyzer based on NetworkInterface
+        if destination_type in ["EC2", "IGW"]:
             return self.route_finder.endpoint_map[destination_type][destination], ""
 
-        if destination_type == "FQDN":
+        # Analyzer based on IP Address
+        if destination_type in ["FQDN", "IP"]:
             if destination in self.route_finder.ip_map:
                 destination = self.route_finder.get_eni_by_name(destination)
                 return destination, ""

@@ -74,6 +74,30 @@ class RouteFinder:
                                                      sync_flag=sync_flag)
         return finding_result
 
+    def describe_analysis_sync(self, network_insight_analysis_id, network_insight_path_id,
+                               sync_flag=True) -> RouteFindingResult:
+        analysis_desc = self._proxy.describe_network_insights_analyses(
+            NetworkInsightsAnalysisIds=[network_insight_analysis_id], NetworkInsightsPathId=network_insight_path_id
+        )
+        response = RouteFindingResult(
+            network_insight_path_id=network_insight_path_id,
+            network_insight_analysis_id=network_insight_analysis_id,
+            detail=analysis_desc
+        )
+        if sync_flag:
+            pbar = tqdm(total=20)
+
+            while response.is_running:
+                time.sleep(1)
+                analysis_desc = self._proxy.describe_network_insights_analyses(
+                    NetworkInsightsAnalysisIds=[network_insight_analysis_id],
+                    NetworkInsightsPathId=network_insight_path_id
+                )
+                response.detail = analysis_desc
+                pbar.update()
+            pbar.update(20)
+        return response
+
     @staticmethod
     def get_host_by_name(fqdn: str):
         return socket.gethostbyname(fqdn)
@@ -124,28 +148,3 @@ class RouteFinder:
                     self.ip_map[_eni_dto.Association["PublicIp"]] = _eni_dto
         except KeyError:
             _instances = []
-
-    def describe_analysis_sync(self, network_insight_analysis_id, network_insight_path_id,
-                               sync_flag=True) -> RouteFindingResult:
-        # describe analysis result
-        analysis_desc = self._proxy.describe_network_insights_analyses(
-            NetworkInsightsAnalysisIds=[network_insight_analysis_id], NetworkInsightsPathId=network_insight_path_id
-        )
-        response = RouteFindingResult(
-            network_insight_path_id=network_insight_path_id,
-            network_insight_analysis_id=network_insight_analysis_id,
-            detail=analysis_desc
-        )
-        if sync_flag:
-            pbar = tqdm(total=20)
-
-            while response.is_running:
-                time.sleep(1)
-                analysis_desc = self._proxy.describe_network_insights_analyses(
-                    NetworkInsightsAnalysisIds=[network_insight_analysis_id],
-                    NetworkInsightsPathId=network_insight_path_id
-                )
-                response.detail = analysis_desc
-                pbar.update()
-            pbar.update(20)
-        return response
