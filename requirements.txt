@@ -4,7 +4,7 @@ emoji==2.12.1
 jmespath==1.0.1
 prompt-toolkit==1.0.14
 Pygments==2.18.0
-PyInquirer==1.0.3
+inquirerpy==0.3.4
 python-dateutil==2.9.0.post0
 regex==2024.5.15
 s3transfer==0.10.2

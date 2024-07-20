@@ -30,7 +30,7 @@ arf -v
 
 AWS Route Finder를 사용하여 경로 분석을 실행하는 방법은 다음과 같습니다:
 
-1. Select SourceType(EC2, IP Address on AWS, Internet Gateway)
+1. Select SourceType(EC2, IP Address on AWS)
 2. Select / Input Source
 3. Select DestinationType(EC2, IP Address, FQDN, InternetGateway)
 4. Select / Input Source

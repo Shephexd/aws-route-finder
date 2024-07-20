@@ -2,7 +2,6 @@ import argparse
 from botocore.config import Config
 from routefinder.command import RouteFinderCommand
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='AWSRouteFinder',
@@ -19,16 +18,9 @@ if __name__ == "__main__":
         print("Target Region:", args.region)
     command = RouteFinderCommand(boto_config=boto_config)
     setup_config = command.setup()
-    print("Start Analyze from {source_type}({source}) to {destination_type}({destination})".format(
-        source_type=setup_config["SourceType"],
-        source=setup_config["Source"],
-        destination_type=setup_config["DestinationType"],
-        destination=setup_config["Destination"]
-    ))
-    result = command.run(source_type=setup_config["SourceType"],
-                         source=setup_config["Source"],
-                         destination_type=setup_config["DestinationType"],
-                         destination=setup_config["Destination"],
-                         protocol=setup_config["Protocol"]
-                         )
+    print(
+        """Start Analyze from"""
+        """{source_type}({source}) to {destination_type}({destination}), {protocol}({destination_port})""".format(
+            **setup_config))
+    result = command.run(**setup_config)
     print(result.get_result(detail=args.verbose))

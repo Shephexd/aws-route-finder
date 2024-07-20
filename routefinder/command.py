@@ -5,17 +5,17 @@ import socket
 import regex
 import boto3
 from botocore.config import Config
-from PyInquirer import prompt
+from InquirerPy import inquirer
+from InquirerPy.base.control import Choice
 from prompt_toolkit.validation import Validator, ValidationError
 from routefinder.app import RouteFinder, RouteFindingResult
 from routefinder.dto import Endpoint
 
 
-
 def validate_available_source(available_source):
-    print(available_source)
     if not available_source:
-        raise ValidationError(message="No Available Source Resource Found(Check EC2, NetworkInterface, InternetGateway)")
+        raise ValidationError(
+            message="No Available Source Resource Found(Check EC2, NetworkInterface, InternetGateway)")
     return True
 
 
@@ -53,128 +53,78 @@ class RouteFinderCommand:
         self.available_sources = self.get_available_sources()
 
     def get_available_sources(self):
-        available_sources = []
         has_instance = bool(self.route_finder.instance_map)
         has_ip = bool(self.route_finder.ip_map)
-        if has_instance:
-            available_sources.append({"name": "Amazon EC2 Instance", "value": "EC2"})
-        else:
-            available_sources.append({"name": "Amazon EC2 Instance", "value": "EC2", "disabled": "No Resource"})
-        if has_ip:
-            available_sources.append({"name": "IP Address on AWS", "value": "IP"})
-        else:
-            available_sources.append({"name": "IP Address on AWS", "value": "IP", "disabled": "No Resource"})
 
+        available_sources = [
+            Choice("EC2", name="Amazon EC2 Instance", enabled=not has_instance),
+            Choice("IP", name="IP Address on AWS", enabled=not has_ip)
+        ]
         if not has_ip and not has_instance:
             raise ValidationError("No Available Resources on target region")
-
-        available_sources.append({"name": "InternetGateway", "value": "IGW"})
         return available_sources
 
     def setup(self):
-        source_questions = [
-            {
-                'type': 'list',
-                'name': 'SourceType',
-                'message': 'Select SourceType',
-                "choices": self.available_sources,
-                "validate": validate_available_source(self.available_sources)
-            },
-            {
-                'type': 'list',
-                'name': 'Source',
-                'message': 'Select Target EC2',
-                "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.instance_map.items()],
-                "when": lambda answer: answer["SourceType"] == "EC2"
-            },
-            {
-                'type': 'input',
-                'name': 'Source',
-                'message': 'Input IP Address on AWS',
-                "validate": lambda ip: validate_registered_ip(self.route_finder, ip),
-                "when": lambda answer: answer["SourceType"] == "IP"
-            },
-            {
-                'type': 'list',
-                'name': 'Source',
-                'message': 'Select Internet Gateway',
-                "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.igw_map.items()],
-                "when": lambda answer: answer["SourceType"] == "IGW"
-            },
-        ]
-        destination_questions = [
-            {
-                'type': 'list',
-                'name': 'DestinationType',
-                'message': 'Select DestinationType',
-                "choices": lambda answer:
-                [
-                    {"name": "Domain Name(FQDN)", "value": "FQDN"},
-                    {"name": "Amazon EC2", "value": "EC2"},
-                    {"name": "IPv4 Address", "value": "IP"}
-                ]
-                if answer["SourceType"] == "IGW"
-                else [
-                    {"name": "Domain Name(FQDN)", "value": "FQDN"},
-                    {"name": "IPv4 Address", "value": "IP"},
-                    {"name": "Amazon EC2", "value": "EC2"},
-                    {"name": "Internet Gateway", "value": "IGW"}
-                ]
-            },
-            {
-                'type': 'list',
-                'name': 'Destination',
-                'message': 'Select Target EC2',
-                "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.instance_map.items()],
-                "when": lambda answer: answer["DestinationType"] == "EC2"
-            },
-            {
-                'type': 'input',
-                'name': 'Destination',
-                'message': 'Input Domain Name',
-                "validate": lambda fqdn: validate_fqdn(self.route_finder, fqdn),
-                "when": lambda answer: answer["DestinationType"] == "FQDN",
-            },
-            {
-                'type': 'input',
-                'name': 'Destination',
-                'message': 'Input IPAddress',
-                "validate": lambda ip: validate_ip(ip),
-                "when": lambda answer: answer["DestinationType"] == "IP"
-            },
-            {
-                'type': 'list',
-                'name': 'Destination',
-                'message': 'Select Internet Gateway',
-                "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.igw_map.items()],
-                "when": lambda answer: answer["DestinationType"] == "IGW"
-            }
-        ]
-        packet_setup = [
-            {
-                'type': 'list',
-                'name': 'Protocol',
-                'message': 'select Protocol',
-                "choices": ['tcp', 'udp']
-            },
-            {
-                'type': 'input',
-                'name': 'Port',
-                'message': 'Input Destination Port Number',
-                "validate": lambda port: port.isnumeric() and 0 <= int(port) <= 65535
-            }
-        ]
-        questions = source_questions + destination_questions + packet_setup
-        return prompt(questions=questions)
+        source_type = inquirer.select(
+            message="Select SourceType",
+            choices=self.available_sources
+        ).execute()
+        source, destination = "", ""
+
+        if source_type == "EC2":
+            source = inquirer.select(
+                message="Select Target EC2",
+                choices=[Choice(k, name=repr(v)) for k, v in self.route_finder.instance_map.items()]
+            ).execute()
+        elif source_type == "IP":
+            source = inquirer.text(
+                message="Input IP Address on AWS",
+                validate=lambda ip: validate_registered_ip(self.route_finder, ip)
+            ).execute()
+        else:
+            raise ValidationError("source must be set")
+
+        destination_type = inquirer.select(
+            message="Select DestinationType",
+            choices=[
+                Choice("FQDN", name="Domain Name(FQDN)"),
+                Choice("EC2", name="Amazon EC2 Instance"),
+                Choice("IP", name="IPv4 Address")]
+        ).execute()
+
+        if destination_type == "EC2":
+            destination = inquirer.select(
+                message="Select Target EC2",
+                choices=[Choice(k, name=repr(v)) for k, v in self.route_finder.instance_map.items()]
+            ).execute()
+        elif destination_type == "FQDN":
+            destination = inquirer.text(
+                message="Input Domain Name",
+                validate=lambda fqdn: validate_fqdn(self.route_finder, fqdn)
+            ).execute()
+        elif destination_type == "IP":
+            destination = inquirer.text(message="Input IP Address", validate=validate_ip).execute()
+        else:
+            raise ValidationError("Destination must be set")
+
+        protocol = inquirer.select(
+            message="select Protocol", choices=["tcp", "udp"]).execute()
+        destination_port = inquirer.number(
+            message="Input destination PortNumber",
+            default=80,
+            validate=lambda port: port.isnumeric() and 0 <= int(port) <= 65535
+        ).execute()
+
+        return {
+            "source_type": source_type, "source": source,
+            "destination_type": destination_type, "destination": destination,
+            "protocol": protocol, "destination_port": int(destination_port)}
 
     def map_source(self, source_type, source, source_ip) -> (Endpoint, str):
-        if source_type == "EC2":
-            source = self.route_finder.instance_map[source]
-        elif source_type == "IGW":
-            source = self.route_finder.igw_map[source]
-        elif source_type == "IP":
-            source = self.route_finder.ip_map[source]
-        return source, source_ip
+        if source_type not in {"EC2", "IP"}:
+            raise ValidationError("source_type must be EC2 or IP on AWS")
+        mapped_source = self.route_finder.endpoint_map[source_type][source]
+        return mapped_source, source_ip
 
     def map_destination(self, destination_type, destination, destination_ip) -> (Endpoint, str):
         # Analyzer based on NetworkInterface
@@ -190,8 +140,8 @@ class RouteFinderCommand:
                 destination_ip = self.route_finder.get_host_by_name(fqdn=destination)
                 return None, destination_ip
 
-    def run(self, source_type, source, destination_type, destination, protocol="tcp", source_ip="", destination_ip="",
-            destination_port=0) -> RouteFindingResult:
+    def run(self, source_type, source, destination_type, destination, protocol="tcp", source_ip="",
+            destination_ip="", destination_port=0) -> RouteFindingResult:
         src_endpoint, source_ip = self.map_source(source_type=source_type,
                                                   source=source,
                                                   source_ip=source_ip)
@@ -213,12 +163,5 @@ class RouteFinderCommand:
 if __name__ == "__main__":
     command = RouteFinderCommand()
     setup_config = command.setup()
-    print(setup_config)
-    result = command.run(source_type=setup_config["SourceType"],
-                         source=setup_config["Source"],
-                         destination_ip="",
-                         destination_type=setup_config["DestinationType"],
-                         destination=setup_config["Destination"],
-                         protocol=setup_config["Protocol"],
-                         destination_port=int(setup_config["Port"]))
+    result = command.run(**setup_config)
     print(result)
