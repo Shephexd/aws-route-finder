@@ -7,7 +7,7 @@ import boto3
 from botocore.config import Config
 from PyInquirer import prompt
 from prompt_toolkit.validation import Validator, ValidationError
-from routefinder.app import RouteFinder, RouteFindingResult, get_host_by_name
+from routefinder.app import RouteFinder, RouteFindingResult
 from routefinder.dto import Endpoint
 
 
@@ -16,6 +16,7 @@ def validate_ip(ip: str):
     if not pattern_ok:
         raise ValidationError(message='Please enter a valid IP')
     return True
+
 
 def validate_fqdn(route_finder: RouteFinder, fqdn):
     try:
@@ -106,7 +107,7 @@ class RouteFinderCommand:
                 'type': 'input',
                 'name': 'Destination',
                 'message': 'Input Domain Name',
-                "validate": self.validate_fqdn,
+                "validate": validate_fqdn,
                 "when": lambda answer: answer["DestinationType"] == "FQDN",
             },
             {

@@ -29,7 +29,7 @@ alias arf="python3 $(pwd)/run.py"
 
 AWS Route Finder를 사용하여 경로 분석을 실행하는 방법은 다음과 같습니다:
 AWS Route Finder 3가지 타입의 경로 분석을 지원합니다.
-1. Inbound (IGW -> EC2)
+1. Select SourceType(EC2, )
 2. Outbound (EC2 -> IGW)
 3. Between EC2 (EC2 -> EC2)
 
