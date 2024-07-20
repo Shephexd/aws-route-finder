@@ -16,7 +16,7 @@ if __name__ == "__main__":
     boto_config = None
     if args.region:
         boto_config = Config(region_name=args.region)
-
+        print("Target Region:", args.region)
     command = RouteFinderCommand(boto_config=boto_config)
     setup_config = command.setup()
     print("Start Analyze from {source_type}({source}) to {destination_type}({destination})".format(

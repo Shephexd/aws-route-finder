@@ -11,6 +11,14 @@ from routefinder.app import RouteFinder, RouteFindingResult
 from routefinder.dto import Endpoint
 
 
+
+def validate_available_source(available_source):
+    print(available_source)
+    if not available_source:
+        raise ValidationError(message="No Available Source Resource Found(Check EC2, NetworkInterface, InternetGateway)")
+    return True
+
+
 def validate_ip(ip: str):
     pattern_ok = regex.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip)
     if not pattern_ok:
@@ -38,10 +46,30 @@ def validate_registered_ip(route_finder: RouteFinder, ip: str):
 class RouteFinderCommand:
     def __init__(self, boto_config: Config = None):
         if boto_config:
-            client = boto3.client("ec2")
-        else:
             client = boto3.client("ec2", config=boto_config)
+        else:
+            client = boto3.client("ec2")
         self.route_finder = RouteFinder(ec2_client=client)
+        self.available_sources = self.get_available_sources()
+
+    def get_available_sources(self):
+        available_sources = []
+        has_instance = bool(self.route_finder.instance_map)
+        has_ip = bool(self.route_finder.ip_map)
+        if has_instance:
+            available_sources.append({"name": "Amazon EC2 Instance", "value": "EC2"})
+        else:
+            available_sources.append({"name": "Amazon EC2 Instance", "value": "EC2", "disabled": "No Resource"})
+        if has_ip:
+            available_sources.append({"name": "IP Address on AWS", "value": "IP"})
+        else:
+            available_sources.append({"name": "IP Address on AWS", "value": "IP", "disabled": "No Resource"})
+
+        if not has_ip and not has_instance:
+            raise ValidationError("No Available Resources on target region")
+
+        available_sources.append({"name": "InternetGateway", "value": "IGW"})
+        return available_sources
 
     def setup(self):
         source_questions = [
@@ -49,11 +77,8 @@ class RouteFinderCommand:
                 'type': 'list',
                 'name': 'SourceType',
                 'message': 'Select SourceType',
-                "choices": [
-                    {"name": "Amazon EC2 Instance", "value": "EC2"},
-                    {"name": "IP Address on AWS", "value": "IP"},
-                    {"name": "Internet Gateway", "value": "IGW"}
-                ]
+                "choices": self.available_sources,
+                "validate": validate_available_source(self.available_sources)
             },
             {
                 'type': 'list',
@@ -107,7 +132,7 @@ class RouteFinderCommand:
                 'type': 'input',
                 'name': 'Destination',
                 'message': 'Input Domain Name',
-                "validate": validate_fqdn,
+                "validate": lambda fqdn: validate_fqdn(self.route_finder, fqdn),
                 "when": lambda answer: answer["DestinationType"] == "FQDN",
             },
             {
