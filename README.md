@@ -11,6 +11,41 @@ AWS Route Finder는 VPC Reachability Analyzer를 기반으로 AWS 인프라의 �
 - 경로 분석 실행: 생성된 네트워크 경로 분석을 실행하고 결과를 반환합니다.
 - 실시간 경로 분석 결과 확인: 경로 분석 결과를 기반으로 네트워크 연결성을 검증합니다.
 
+
+### 사전 요구사항
+AWS의 CloudShell에서 사용을 권장합니다.
+AWS Route Finder를 사용하기 위해서는 aws-cli 도구가 설치되어 있고, 자격증명이 설정되어 있어야 합니다.
+
+
+1. AWS CLI 설치하기
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+```
+
+2. 계정 자격 증명 설정하기
+```bash
+$aws configure
+AWS Access Key ID [None]: <AccessKeyId>
+AWS Secret Access Key [None]: <위에서 발급한 Secret Access Key>
+Default region name [None]: 
+Default output format [None]:
+```
+
+```bash
+$aws sts get-caller-identity
+{
+    "UserId": "AI******",
+    "Account": "*****",
+    "Arn": "arn:aws:iam::ACCOUNTID:user/USER_NAME"
+}
+```
+
+**[참고자료]**
+- [AWS-CLI 설치 가이드, AWS](https://docs.aws.amazon.com/ko_kr/cli/latest/userguide/getting-started-install.html)
+
+
 ### 설치
 AWS Route Finder를 사용하려면 boto3 라이브러리가 필요합니다. boto3를 설치하려면 다음 명령을 실행하세요:
 
@@ -24,7 +59,6 @@ pip install -r requirements.txt
 alias arf="python3 $(pwd)/run.py"
 arf -v
 ```
-
 
 ### 사용법
 
