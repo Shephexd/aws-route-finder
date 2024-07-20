@@ -22,43 +22,48 @@ git clone https://github.com/Shephexd/aws-route-finder/
 cd aws-route-finder
 pip install -r requirements.txt
 alias arf="python3 $(pwd)/run.py"
+arf -v
 ```
 
 
 ### 사용법
 
 AWS Route Finder를 사용하여 경로 분석을 실행하는 방법은 다음과 같습니다:
-AWS Route Finder 3가지 타입의 경로 분석을 지원합니다.
-1. Select SourceType(EC2, )
-2. Outbound (EC2 -> IGW)
-3. Between EC2 (EC2 -> EC2)
+
+1. Select SourceType(EC2, IP Address on AWS, Internet Gateway)
+2. Select / Input Source
+3. Select DestinationType(EC2, IP Address, FQDN, InternetGateway)
+4. Select / Input Source
+5. Select Protocol
+6. Input Destination Port
 
 ```bash
 arf -v # verbose mode
+arf --region ap-northeast-2 # region selection
 ```
 
 **output**
 ```bash
-? Select Route Finder Type  Inbound   (IGW->EC2)
-? Source Ip  0.0.0.0
-? Select Source IGW  InternetGateways(Name="Sample-Gateway", ...)
-? select Target EC2  EC2Instance(Name="Sample-EC2", ...)
-? Destination Port(0-65535)  8000
+? Select SourceType  IP Address on AWS
+? Input IP Address on AWS  10.100.30.2
+? Select DestinationType  IPv4 Address
+? Input IPAddress  8.8.8.8
 ? select Protocol  tcp
-
+? Input Destination Port Number  80
+Start Analyze from IP(10.1.154.153) to IP(8.8.8.8)
+35it [00:16,  2.17it/s]                         
 ✅ Network Route is reachable!
 
 Route Path Detail:
 🔑 Sequence Number: 1
-⚙️ Component ID: igw-abcdef, ...
+⚙️ Component ID: i-12312321, ...
 🔗 OutboundHeader: ...
 🔗 InboundHeader: ...
-🔗 Vpc: {'Id': 'vpc-testvpc', 'Arn': ...}
 .
 .
 .
 🔑 Sequence Number: 14
-⚙️ Component ID: i-ffffff, ..., Name: Sample-EC2
+⚙️ Component ID: igw-0e132431, ..., Name: sample-igw
 🔗 InboundHeader: ...
 ```
 
