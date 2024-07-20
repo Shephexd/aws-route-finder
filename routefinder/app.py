@@ -13,34 +13,65 @@ class RouteFinder:
         self.igw_map = {}
         self.eni_map = {}
         self.ip_map = {}
+        self.endpoint_map = {
+            "EC2": self.instance_map,
+            "IGW": self.igw_map,
+            "ENI": self.eni_map,
+            "IP": self.ip_map
+        }
         self.register_igw()
         self.register_instances()
         self.register_eni()
 
     @property
     def igws(self):
-        return list(self.igw_map.values())
+        return list(self.endpoint_map["IGW"].values())
 
     @property
     def instances(self):
         return list(self.instance_map.values())
 
-    def run(self, source: Endpoint, destination: Endpoint, protocol: str, source_ip='', destination_port=0,
-            sync_flag=False):
-        if isinstance(source, Endpoint):
-            source = source.id
-        if isinstance(destination, Endpoint):
-            destination = destination.id
+    def run(self,
+            source: Endpoint,
+            destination: Endpoint = None,
+            protocol: str = "tcp",
+            source_ip=None,
+            destination_ip=None,
+            destination_port=None,
+            sync_flag=True):
+        if destination is None and destination_ip is None:
+            raise ValueError("Destination(IP or ARN) Must be Set")
 
-        network_insight = self.create_network_insight(source_id=source, destination_id=destination, protocol=protocol,
-                                                      source_ip=source_ip, destination_port=destination_port)
+        create_network_insights_path_kwargs = {"Source": source.id, "Protocol": protocol}
+        if isinstance(destination, Endpoint):
+            if destination.id == source.id:
+                raise RuntimeError("Source and Destination cannot be same.")
+
+            create_network_insights_path_kwargs["SourceIp"]: source_ip
+            create_network_insights_path_kwargs["Destination"] = destination.id
+            create_network_insights_path_kwargs["DestinationIp"] = destination_ip
+            create_network_insights_path_kwargs["DestinationPort"] = destination_port
+        else:
+            filter_at_source = {
+                'DestinationAddress': destination_ip,
+                'DestinationPortRange': {
+                    'FromPort': destination_port,
+                    'ToPort': destination_port
+                }
+            }
+            create_network_insights_path_kwargs["FilterAtSource"] = filter_at_source
+
+        create_network_insights_path_kwargs = {k: v for k, v in create_network_insights_path_kwargs.items() if v}
+        network_insight = self._proxy.create_network_insights_path(**create_network_insights_path_kwargs)
+
         network_insight_path_id = network_insight['NetworkInsightsPath']['NetworkInsightsPathId']
-        network_analysis = self.start_analysis(network_insight_path_id=network_insight_path_id)
+        network_analysis = self._proxy.start_network_insights_analysis(
+            NetworkInsightsPathId=network_insight_path_id)
 
         network_insight_analysis_id = network_analysis['NetworkInsightsAnalysis']['NetworkInsightsAnalysisId']
-        finding_result = self.describe_analysis(network_insight_path_id=network_insight_path_id,
-                                                network_insight_analysis_id=network_insight_analysis_id,
-                                                sync_flag=sync_flag)
+        finding_result = self.describe_analysis_sync(network_insight_path_id=network_insight_path_id,
+                                                     network_insight_analysis_id=network_insight_analysis_id,
+                                                     sync_flag=sync_flag)
         return finding_result
 
     @staticmethod
@@ -94,23 +125,8 @@ class RouteFinder:
         except KeyError:
             _instances = []
 
-    def create_network_insight(self, source_id, destination_id, protocol, source_ip='', destination_port=0) -> dict:
-        network_insight = self._proxy.create_network_insights_path(
-            Source=source_id,
-            SourceIp=source_ip,
-            Destination=destination_id,
-            DestinationPort=destination_port,
-            Protocol=protocol
-        )
-        return network_insight
-
-    def start_analysis(self, network_insight_path_id) -> dict:
-        network_analysis = self._proxy.start_network_insights_analysis(
-            NetworkInsightsPathId=network_insight_path_id)
-        return network_analysis
-
-    def describe_analysis(self, network_insight_analysis_id, network_insight_path_id,
-                          sync_flag=False) -> RouteFindingResult:
+    def describe_analysis_sync(self, network_insight_analysis_id, network_insight_path_id,
+                               sync_flag=True) -> RouteFindingResult:
         # describe analysis result
         analysis_desc = self._proxy.describe_network_insights_analyses(
             NetworkInsightsAnalysisIds=[network_insight_analysis_id], NetworkInsightsPathId=network_insight_path_id

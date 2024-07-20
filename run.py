@@ -19,6 +19,12 @@ if __name__ == "__main__":
 
     command = RouteFinderCommand(boto_config=boto_config)
     setup_config = command.setup()
+    print("Start Analyze from {source_type}({source}) to {destination_type}({destination})".format(
+        source_type=setup_config["SourceType"],
+        source=setup_config["Source"],
+        destination_type=setup_config["DestinationType"],
+        destination=setup_config["Destination"]
+    ))
     result = command.run(source_type=setup_config["SourceType"],
                          source=setup_config["Source"],
                          destination_type=setup_config["DestinationType"],

@@ -1,45 +1,54 @@
 from __future__ import print_function, unicode_literals
+
+import socket
+
 import regex
 import boto3
+from botocore.config import Config
 from PyInquirer import prompt
 from prompt_toolkit.validation import Validator, ValidationError
 from routefinder.app import RouteFinder, RouteFindingResult
+from routefinder.dto import Endpoint
 
 
-class IPValidator(Validator):
-    def validate(self, document):
-        ok = regex.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", document.text)
-        if not ok:
-            raise ValidationError(
-                message='Please enter a valid IP',
-                cursor_position=len(document.text))  # Move cursor to end
+def validate_ip(ip: str):
+    pattern_ok = regex.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip)
+    if not pattern_ok:
+        raise ValidationError(message='Please enter a valid IP')
 
 
-class FQDNValidator(Validator):
-    def validate(self, document):
-        ok = RouteFinder.get_host_by_name(fqdn=document.text)
-        if not ok:
-            raise ValidationError(
-                message='Please enter a valid IP',
-                cursor_position=len(document.text))  # Move cursor to end
+def validate_registered_ip(route_finder: RouteFinder, ip):
+    validate_ip(ip)
+
+    is_registered_ip = route_finder.ip_map.get(ip)
+    if not is_registered_ip:
+        raise ValidationError(message='Not registered IP')
+    return True
+
+
+SOURCE_TYPES = {"EC2", "IGW", "IP"}
+DESTINATION_TYPES = {"FQDN", "EC2", "IGW", "IP"}
 
 
 class RouteFinderCommand:
-    def __init__(self):
-        client = boto3.client("ec2")
+    def __init__(self, boto_config: Config = None):
+        if boto_config:
+            client = boto3.client("ec2")
+        else:
+            client = boto3.client("ec2", config=boto_config)
         self.route_finder = RouteFinder(ec2_client=client)
 
-    def validate_ip(self, answers, ip):
+    def validate_ip(self, ip):
         if ip not in self.route_finder.ip_map:
-            raise ValidationError("")
+            return False
         return True
 
     def validate_fqdn(self, fqdn):
-        print(self, fqdn)
-        host = self.route_finder.get_host_by_name(fqdn)
-        if host not in self.route_finder.ip_map:
-            raise ValidationError("No Host in IP List")
-        return True
+        try:
+            host = self.route_finder.get_host_by_name(fqdn)
+            return True
+        except socket.gaierror:
+            return False
 
     def setup(self):
         source_questions = [
@@ -64,8 +73,7 @@ class RouteFinderCommand:
                 'type': 'input',
                 'name': 'Source',
                 'message': 'Input IP Address on AWS',
-                "choices": [{"name": k, "value": v} for k, v in self.route_finder.ip_map.items()],
-                "validate": self.validate_ip,
+                "validate": lambda ip: validate_registered_ip(self.route_finder, ip),
                 "when": lambda answer: answer["SourceType"] == "IP"
             },
             {
@@ -73,7 +81,6 @@ class RouteFinderCommand:
                 'name': 'Source',
                 'message': 'Select Internet Gateway',
                 "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.igw_map.items()],
-                "input": IPValidator,
                 "when": lambda answer: answer["SourceType"] == "IGW"
             },
         ]
@@ -110,7 +117,7 @@ class RouteFinderCommand:
                 'name': 'Destination',
                 'message': 'Input IP Address',
                 "choices": [{"name": repr(v), "value": k} for k, v in self.route_finder.igw_map.items()],
-                "validate": IPValidator,
+                "validate": lambda ip: validate_ip(ip),
                 "when": lambda answer: answer["DestinationType"] == "IGW"
             }
         ]
@@ -121,22 +128,51 @@ class RouteFinderCommand:
                 'message': 'select Protocol',
                 "choices": ['tcp', 'udp']
             },
+            {
+                'type': 'input',
+                'name': 'Port',
+                'message': 'Input Destination Port Number',
+                "validate": lambda port: port.isnumeric() and 0 <= int(port) <= 65535
+            }
         ]
         questions = source_questions + destination_questions + packet_setup
         return prompt(questions=questions)
 
-    def run(self, source_type, source, destination_type, destination, protocol) -> RouteFindingResult:
-        if source_type == "IP":
-            source = self.route_finder.get_eni_by_ip(source)
+    def map_source(self, source_type, source, source_ip) -> (Endpoint, str):
+        if source_type == "EC2":
+            source = self.route_finder.instance_map[source]
+        elif source_type == "IGW":
+            source = self.route_finder.igw_map[source]
+        elif source_type == "IP":
+            source = self.route_finder.ip_map[source]
+        return source, source_ip
+
+    def map_destination(self, destination_type, destination, destination_ip) -> (Endpoint, str):
+        if destination_type in ["EC2", "IP", "IGW"]:
+            return self.route_finder.endpoint_map[destination_type][destination], ""
 
         if destination_type == "FQDN":
-            destination = self.route_finder.get_eni_by_name(destination)
+            if destination in self.route_finder.ip_map:
+                destination = self.route_finder.get_eni_by_name(destination)
+                return destination, ""
+            else:
+                destination_ip = self.route_finder.get_host_by_name(fqdn=destination)
+                return None, destination_ip
 
+    def run(self, source_type, source, destination_type, destination, protocol="tcp", source_ip="", destination_ip="",
+            destination_port=0) -> RouteFindingResult:
+        src_endpoint, source_ip = self.map_source(source_type=source_type,
+                                                  source=source,
+                                                  source_ip=source_ip)
+        dest_endpoint, destination_ip = self.map_destination(destination_type=destination_type,
+                                                             destination=destination,
+                                                             destination_ip=destination_ip)
         analysis_result = self.route_finder.run(
-            source=source,
-            # source_ip=network_insight_kwargs["SourceIp"],
-            destination=destination,
-            # destination_port=int(network_insight_kwargs["DestinationPort"]),
+            source=src_endpoint,
+            source_ip=source_ip,
+            destination=dest_endpoint,
+            destination_ip=destination_ip,
+            destination_port=destination_port,
             protocol=protocol,
             sync_flag=True
         )
@@ -146,9 +182,12 @@ class RouteFinderCommand:
 if __name__ == "__main__":
     command = RouteFinderCommand()
     setup_config = command.setup()
+    print(setup_config)
     result = command.run(source_type=setup_config["SourceType"],
                          source=setup_config["Source"],
+                         destination_ip="",
                          destination_type=setup_config["DestinationType"],
                          destination=setup_config["Destination"],
-                         protocol=setup_config["Protocol"])
+                         protocol=setup_config["Protocol"],
+                         destination_port=int(setup_config["Port"]))
     print(result)

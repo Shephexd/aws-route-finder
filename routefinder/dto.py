@@ -59,7 +59,6 @@ class EC2Instance(Endpoint):
 
 @dataclass
 class NetworkInterface(Endpoint):
-
     NetworkInterfaceId: str
     InterfaceType: str
     OwnerId: str = field(repr=False)
@@ -76,6 +75,7 @@ class NetworkInterface(Endpoint):
     MacAddress: str = field(repr=False)
     Attachment: dict = field(default_factory=dict, repr=False)
     Association: dict = field(default_factory=dict, repr=False)
+
     # Deny_all_igw_traffic: str
 
     @property
