@@ -74,11 +74,14 @@ class RouteFinder:
         analysis_desc = self._proxy.describe_network_insights_analyses(
             NetworkInsightsAnalysisIds=[network_insight_analysis_id], NetworkInsightsPathId=network_insight_path_id
         )
+
         response = RouteFindingResult(
             network_insight_path_id=network_insight_path_id,
             network_insight_analysis_id=network_insight_analysis_id,
+            region_name=self._proxy.meta.region_name,
             detail=analysis_desc
         )
+
         if sync_flag:
             pbar = tqdm(total=20)
 

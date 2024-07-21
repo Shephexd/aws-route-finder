@@ -105,6 +105,7 @@ class RouteFindingResult:
     network_insight_path_id: str
     network_insight_analysis_id: str
     detail: dict
+    region_name: str = ""
 
     @property
     def status(self):
@@ -126,10 +127,20 @@ class RouteFindingResult:
         if self.is_succeed:
             return self.detail["NetworkInsightsAnalyses"][0]["NetworkPathFound"]
 
+    @property
+    def console_url(self):
+        console_url = "https://console.aws.amazon.com/networkinsights/home"
+        if self.region_name:
+            console_url += f"?region_name={self.region_name}"
+        console_url += f"#NetworkPath:pathId={self.network_insight_path_id}"
+        return console_url
+
     def get_result(self, detail=False):
         headline = AnalyzedOutputFormatter.get_headline(is_reachable=self.is_reachable)
+        console_url = f"console url: {self.console_url}"
         explanation = self.get_explain()
-        lines = [headline, explanation]
+
+        lines = [headline, console_url, explanation]
         if detail:
             summary = self.get_forward_path_summary()
             lines.append(summary)

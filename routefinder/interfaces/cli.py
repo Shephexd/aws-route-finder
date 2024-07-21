@@ -146,6 +146,7 @@ class RouteFinderCommand:
             destination_ip=serialized_config["destination_ip"],
             destination_port=serialized_config["destination_port"],
             sync_flag=sync_flag)
+
         return analysis_result
 
 

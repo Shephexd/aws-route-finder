@@ -71,8 +71,8 @@ class CommandConfig:
         if dest is None:
             dest = self.destination_ip
         print(
-            f"Start Analyze from {self.source_type}({self.source}) to "
-            f"{self.destination_type}({dest}), {self.protocol}({self.destination_port})")
+            f"Start Analyzing from {self.source_type}({self.source}) "
+            f"to {self.destination_type}({dest}) over {self.protocol} {self.destination_port} port")
 
 
 class CommandConfigFactory:
