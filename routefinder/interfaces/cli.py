@@ -4,12 +4,11 @@ import socket
 
 import regex
 import boto3
-from botocore.config import Config
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
-from prompt_toolkit.validation import Validator, ValidationError
+from prompt_toolkit.validation import ValidationError
 from routefinder.app import RouteFinder, RouteFindingResult
-from routefinder.dto import Endpoint
+from routefinder.interfaces.config import CommandConfigFactory, CommandConfig
 
 
 def validate_available_source(available_source):
@@ -44,13 +43,11 @@ def validate_registered_ip(route_finder: RouteFinder, ip: str):
 
 
 class RouteFinderCommand:
-    def __init__(self, boto_config: Config = None):
-        if boto_config:
-            client = boto3.client("ec2", config=boto_config)
-        else:
-            client = boto3.client("ec2")
+    def __init__(self, boto_config=None):
+        client = boto3.client("ec2", config=boto_config)
         self.route_finder = RouteFinder(ec2_client=client)
         self.available_sources = self.get_available_sources()
+        self.config_factory = CommandConfigFactory(command=self)
 
     def get_available_sources(self):
         has_instance = bool(self.route_finder.instance_map)
@@ -61,15 +58,15 @@ class RouteFinderCommand:
             Choice("IP", name="IP Address on AWS", enabled=not has_ip)
         ]
         if not has_ip and not has_instance:
-            raise ValidationError("No Available Resources on target region")
+            raise ValidationError(message="No Available Resources on target region")
         return available_sources
 
-    def setup(self):
+    def ask_source(self):
+        source = ""
         source_type = inquirer.select(
             message="Select SourceType",
             choices=self.available_sources
         ).execute()
-        source, destination = "", ""
 
         if source_type == "EC2":
             source = inquirer.select(
@@ -82,8 +79,11 @@ class RouteFinderCommand:
                 validate=lambda ip: validate_registered_ip(self.route_finder, ip)
             ).execute()
         else:
-            raise ValidationError("source must be set")
+            raise ValidationError(message="source must be set")
+        return source, source_type
 
+    def ask_destination(self):
+        destination = ""
         destination_type = inquirer.select(
             message="Select DestinationType",
             choices=[
@@ -105,8 +105,12 @@ class RouteFinderCommand:
         elif destination_type == "IP":
             destination = inquirer.text(message="Input IP Address", validate=validate_ip).execute()
         else:
-            raise ValidationError("Destination must be set")
+            raise ValidationError(message="Destination must be set")
+        return destination, destination_type
 
+    def setup(self):
+        source, source_type = self.ask_source()
+        destination, destination_type = self.ask_destination()
         protocol = inquirer.select(
             message="select Protocol", choices=["tcp", "udp"]).execute()
         destination_port = inquirer.number(
@@ -115,53 +119,26 @@ class RouteFinderCommand:
             validate=lambda port: port.isnumeric() and 0 <= int(port) <= 65535
         ).execute()
 
-        return {
-            "source_type": source_type, "source": source,
-            "destination_type": destination_type, "destination": destination,
-            "protocol": protocol, "destination_port": int(destination_port)}
+        return self.config_factory.build(source_type=source_type, source=source,
+                                         destination_type=destination_type, destination=destination,
+                                         protocol=protocol, destination_port=destination_port)
 
-    def map_source(self, source_type, source, source_ip) -> (Endpoint, str):
-        if source_type not in {"EC2", "IP"}:
-            raise ValidationError("source_type must be EC2 or IP on AWS")
-        mapped_source = self.route_finder.endpoint_map[source_type][source]
-        return mapped_source, source_ip
-
-    def map_destination(self, destination_type, destination, destination_ip) -> (Endpoint, str):
-        # Analyzer based on NetworkInterface
-        if destination_type in ["EC2", "IGW"]:
-            return self.route_finder.endpoint_map[destination_type][destination], ""
-
-        # Analyzer based on IP Address
-        if destination_type in ["FQDN", "IP"]:
-            if destination in self.route_finder.ip_map:
-                destination = self.route_finder.get_eni_by_name(destination)
-                return destination, ""
-            else:
-                destination_ip = self.route_finder.get_host_by_name(fqdn=destination)
-                return None, destination_ip
-
-    def run(self, source_type, source, destination_type, destination, protocol="tcp", source_ip="",
-            destination_ip="", destination_port=0) -> RouteFindingResult:
-        src_endpoint, source_ip = self.map_source(source_type=source_type,
-                                                  source=source,
-                                                  source_ip=source_ip)
-        dest_endpoint, destination_ip = self.map_destination(destination_type=destination_type,
-                                                             destination=destination,
-                                                             destination_ip=destination_ip)
+    def run(self, config: CommandConfig, sync_flag=True) -> RouteFindingResult:
+        config.is_valid()
+        serialized_config = config.serialize(route_finder=self.route_finder)
         analysis_result = self.route_finder.run(
-            source=src_endpoint,
-            source_ip=source_ip,
-            destination=dest_endpoint,
-            destination_ip=destination_ip,
-            destination_port=destination_port,
-            protocol=protocol,
-            sync_flag=True
-        )
+            source=serialized_config["source"],
+            destination=serialized_config["destination"],
+            protocol=serialized_config["protocol"],
+            source_ip=serialized_config["source_ip"],
+            destination_ip=serialized_config["destination_ip"],
+            destination_port=serialized_config["destination_port"],
+            sync_flag=sync_flag)
         return analysis_result
 
 
 if __name__ == "__main__":
     command = RouteFinderCommand()
-    setup_config = command.setup()
-    result = command.run(**setup_config)
-    print(result)
+    command_config: CommandConfig = command.setup()
+    result = command.run(command_config, sync_flag=True)
+    print(result.get_result(detail=True))

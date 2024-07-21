@@ -39,14 +39,9 @@ class RouteFinder:
             destination_ip=None,
             destination_port=None,
             sync_flag=True):
-        if destination is None and destination_ip is None:
-            raise ValueError("Destination(IP or ARN) Must be Set")
 
         create_network_insights_path_kwargs = {"Source": source.id, "Protocol": protocol}
         if isinstance(destination, Endpoint):
-            if destination.id == source.id:
-                raise RuntimeError("Source and Destination cannot be same.")
-
             create_network_insights_path_kwargs["SourceIp"]: source_ip
             create_network_insights_path_kwargs["Destination"] = destination.id
             create_network_insights_path_kwargs["DestinationIp"] = destination_ip
