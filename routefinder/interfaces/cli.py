@@ -42,6 +42,13 @@ def validate_registered_ip(route_finder: RouteFinder, ip: str):
     return True
 
 
+def validate_registered_fqdn(route_finder, fqdn):
+    if validate_fqdn(route_finder=route_finder, fqdn=fqdn):
+        host = route_finder.get_host_by_name(fqdn)
+        return validate_registered_ip(route_finder=route_finder, ip=host)
+    raise ValidationError(message='Not registered FQDN')
+
+
 class RouteFinderCommand:
     def __init__(self, boto_config=None):
         client = boto3.client("ec2", config=boto_config)
@@ -55,7 +62,8 @@ class RouteFinderCommand:
 
         available_sources = [
             Choice("EC2", name="Amazon EC2 Instance", enabled=not has_instance),
-            Choice("IP", name="IP Address on AWS", enabled=not has_ip)
+            Choice("IP", name="IP Address on AWS", enabled=not has_ip),
+            Choice("FQDN", name="FQDN on AWS", enabled=not has_ip),
         ]
         if not has_ip and not has_instance:
             raise ValidationError(message="No Available Resources on target region")
@@ -78,12 +86,16 @@ class RouteFinderCommand:
                 message="Input IP Address on AWS",
                 validate=lambda ip: validate_registered_ip(self.route_finder, ip)
             ).execute()
+        elif source_type == "FQDN":
+            source = inquirer.text(
+                message="FQDN on AWS",
+                validate=lambda fqdn: validate_registered_fqdn(self.route_finder, fqdn)
+            ).execute()
         else:
             raise ValidationError(message="source must be set")
         return source, source_type
 
     def ask_destination(self):
-        destination = ""
         destination_type = inquirer.select(
             message="Select DestinationType",
             choices=[
