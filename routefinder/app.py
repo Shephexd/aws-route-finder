@@ -39,14 +39,9 @@ class RouteFinder:
             destination_ip=None,
             destination_port=None,
             sync_flag=True):
-        if destination is None and destination_ip is None:
-            raise ValueError("Destination(IP or ARN) Must be Set")
 
         create_network_insights_path_kwargs = {"Source": source.id, "Protocol": protocol}
         if isinstance(destination, Endpoint):
-            if destination.id == source.id:
-                raise RuntimeError("Source and Destination cannot be same.")
-
             create_network_insights_path_kwargs["SourceIp"]: source_ip
             create_network_insights_path_kwargs["Destination"] = destination.id
             create_network_insights_path_kwargs["DestinationIp"] = destination_ip
@@ -79,11 +74,14 @@ class RouteFinder:
         analysis_desc = self._proxy.describe_network_insights_analyses(
             NetworkInsightsAnalysisIds=[network_insight_analysis_id], NetworkInsightsPathId=network_insight_path_id
         )
+
         response = RouteFindingResult(
             network_insight_path_id=network_insight_path_id,
             network_insight_analysis_id=network_insight_analysis_id,
+            region_name=self._proxy.meta.region_name,
             detail=analysis_desc
         )
+
         if sync_flag:
             pbar = tqdm(total=20)
 

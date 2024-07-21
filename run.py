@@ -1,6 +1,7 @@
 import argparse
 from botocore.config import Config
-from routefinder.command import RouteFinderCommand
+from routefinder.interfaces.cli import RouteFinderCommand
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -16,11 +17,9 @@ if __name__ == "__main__":
     if args.region:
         boto_config = Config(region_name=args.region)
         print("Target Region:", args.region)
+
     command = RouteFinderCommand(boto_config=boto_config)
     setup_config = command.setup()
-    print(
-        """Start Analyze from"""
-        """{source_type}({source}) to {destination_type}({destination}), {protocol}({destination_port})""".format(
-            **setup_config))
-    result = command.run(**setup_config)
-    print(result.get_result(detail=args.verbose))
+    setup_config.summarize()
+    result = command.run(config=setup_config)
+    print(result.get_result(detail=True))
