@@ -38,7 +38,7 @@ def validate_registered_ip(route_finder: RouteFinder, ip: str):
 
     is_registered_ip = route_finder.ip_map.get(ip)
     if not is_registered_ip:
-        raise ValidationError(message='Not registered IP')
+        raise ValidationError(message='Unregistered IP')
     return True
 
 
@@ -46,7 +46,7 @@ def validate_registered_fqdn(route_finder, fqdn):
     if validate_fqdn(route_finder=route_finder, fqdn=fqdn):
         host = route_finder.get_host_by_name(fqdn)
         return validate_registered_ip(route_finder=route_finder, ip=host)
-    raise ValidationError(message='Not registered FQDN')
+    raise ValidationError(message='Unregistered FQDN')
 
 
 class RouteFinderCommand:
@@ -152,6 +152,10 @@ class RouteFinderCommand:
 
 if __name__ == "__main__":
     command = RouteFinderCommand()
-    command_config: CommandConfig = command.setup()
-    result = command.run(command_config, sync_flag=True)
-    print(result.get_result(detail=True))
+    try:
+        command_config: CommandConfig = command.setup()
+        result = command.run(command_config, sync_flag=True)
+        print(result.get_result(detail=True))
+    except KeyboardInterrupt as e:
+        print("Exit RouteFinder")
+        exit(0)
