@@ -156,6 +156,9 @@ class RouteFindingResult:
         if self.is_running:
             raise RuntimeError("RouteFinding Analysis is running")
 
-        summary = AnalyzedOutputFormatter.summarize(
-            entry=self.detail["NetworkInsightsAnalyses"][0]["ForwardPathComponents"])
+        if self.detail["NetworkInsightsAnalyses"][0]["NetworkPathFound"]:
+            summary = AnalyzedOutputFormatter.summarize(
+                entry=self.detail["NetworkInsightsAnalyses"][0]["ForwardPathComponents"])
+        else:
+            summary = "Network Path Not Found"
         return summary
