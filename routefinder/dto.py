@@ -68,11 +68,11 @@ class NetworkInterface(Endpoint):
     SubnetId: str = field(repr=False)
     VpcId: str = field(repr=False)
     AvailabilityZone: str = field(repr=False)
-    SourceDestCheck: str = field(repr=False)
-    PrivateDnsName: str = field(repr=False)
-    Description: str
-    Groups: List[str] = field(repr=False)
-    MacAddress: str = field(repr=False)
+    SourceDestCheck: str = field(repr=False, default="")
+    PrivateDnsName: str = field(repr=False, default="")
+    Description: str = ""
+    Groups: List[str] = field(repr=False, default=list)
+    MacAddress: str = field(repr=False, default="")
     Attachment: dict = field(default_factory=dict, repr=False)
     Association: dict = field(default_factory=dict, repr=False)
 
