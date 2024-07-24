@@ -23,7 +23,7 @@ if __name__ == "__main__":
         setup_config = command.setup()
         setup_config.summarize()
         result = command.run(config=setup_config)
-        print(result.get_result(detail=True))
+        print(result.get_result(detail=args.verbose))
 
     except KeyboardInterrupt as e:
         print("Exit RouteFinder")
